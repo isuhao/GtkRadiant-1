@@ -36,6 +36,10 @@
 /* dependencies */
 #include "q3map2.h"
 
+#ifdef SMOKINGUNS
+qboolean compile_map;
+#endif
+
 /*
    Random()
    returns a pseudorandom number between 0 and 1
@@ -677,9 +681,18 @@ int main( int argc, char **argv ){
 	   and we put the GtkRadiant version to make it easy to track with what version of Radiant it was built with */
 
 	Sys_Printf( "Q3Map         - v1.0r (c) 1999 Id Software Inc.\n" );
+#ifdef SMOKINGUNS
+	Sys_Printf( "Q3Map (ydnar) - v" Q3MAP_VERSION " (Smokin'Guns " SG_Q3MAP_VERSION " flavour)\n" );
+#else
 	Sys_Printf( "Q3Map (ydnar) - v" Q3MAP_VERSION "\n" );
+#endif
 	Sys_Printf( "GtkRadiant    - v" RADIANT_VERSION " " __DATE__ " " __TIME__ "\n" );
 	Sys_Printf( "%s\n", Q3MAP_MOTD );
+
+#ifdef SMOKINGUNS
+	Sys_Printf( "\nModified for Smokin'Guns - This is the " SG_Q3MAP_VERSION " experimental version.\nUse at your own risk. :P\n\n" );
+	compile_map = qfalse;
+#endif
 
 	/* ydnar: new path initialization */
 	InitPaths( &argc, argv );
@@ -742,7 +755,10 @@ int main( int argc, char **argv ){
 	}
 
 	/* ydnar: otherwise create a bsp */
-	else{
+	else {
+#ifdef SMOKINGUNS
+		compile_map = qtrue;
+#endif
 		r = BSPMain( argc, argv );
 	}
 

@@ -32,12 +32,13 @@
 #ifndef Q3MAP2_H
 #define Q3MAP2_H
 
-
+#ifdef SMOKINGUNS
+#define SG_Q3MAP_VERSION "1.2.1"
+#endif
 
 /* version */
 #define Q3MAP_VERSION   "2.5.17"
 #define Q3MAP_MOTD      "Last one turns the lights off"
-
 
 /* -------------------------------------------------------------------------------
    
@@ -190,6 +191,21 @@ extern int unz_GAME_QL;
 #define C_NOMARKS               0x00010000  /* no decals */
 #define C_DETAIL                0x08000000  /* THIS MUST BE THE SAME AS IN RADIANT! */
 
+#ifdef SMOKINGUNS
+// new Smokin'Guns surface flags
+#define	Q_SURF_METAL			0x00001000 
+#define	Q_SURF_WOOD				0x00080000 
+#define	Q_SURF_CLOTH			0x00100000
+#define Q_SURF_DIRT				0x00200000
+#define	Q_SURF_GLASS			0x00400000
+#define	Q_SURF_PLANT			0x00800000
+#define Q_SURF_SAND				0x01000000
+#define	Q_SURF_SNOW				0x02000000
+#define	Q_SURF_STONE			0x04000000
+#define	Q_SURF_WATER			0x08000000
+#define	Q_SURF_GRASS			0x10000000
+#define	Q_SURF_BREAKABLE		0x20000000
+#endif
 
 /* shadow flags */
 #define WORLDSPAWN_CAST_SHADOWS 1
@@ -1830,7 +1846,12 @@ void                        WriteIBSPFile( const char *filename );
 void                        LoadRBSPFile( const char *filename );
 void                        WriteRBSPFile( const char *filename );
 
-
+#ifdef SMOKINGUNS
+void						WriteTexFile(char *name);
+void						LoadSurfaceFlags(char *filename);
+int							GetSurfaceParm(const char *tex);
+void						RestoreSurfaceFlags(char *filename);
+#endif
 
 /* -------------------------------------------------------------------------------
 
@@ -1881,6 +1902,10 @@ Q_EXTERN game_t games[]
 	,
 								#include "game_reaction.h" /* must be after game_quake3.h */
 	,
+#ifdef SMOKINGUNS
+								#include "game_smokinguns.h"   /* Smokin'Guns game */
+	,
+#endif
 	{ NULL }                                /* null game */
 	};
 #endif
@@ -2377,6 +2402,10 @@ Q_EXTERN bspFog_t bspFogs[ MAX_MAP_FOGS ];
 Q_EXTERN int numBSPAds Q_ASSIGN( 0 );
 Q_EXTERN bspAdvertisement_t bspAds[ MAX_MAP_ADVERTISEMENTS ];
 
+#ifdef SMOKINGUNS
+// Smokin'Guns globals
+Q_EXTERN qboolean			compile_map;
+#endif
 
 /* end marker */
 #endif

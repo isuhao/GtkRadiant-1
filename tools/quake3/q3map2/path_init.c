@@ -212,6 +212,10 @@ game_t *GetGame( char *arg ){
 		 !Q_stricmp( arg, "hl" ) ) {
 		Sys_Printf( "April fools, silly rabbit!\n" );
 		exit( 0 );
+#ifndef SMOKINGUNS
+	} else if ( !Q_stricmp( arg, "smokinguns" ) {
+		Sys_Printf( "Houston, we have a problem!\n(Psst, maybe you need q3map2 Smokin'Guns flavour...)\n" );
+#endif
 	}
 
 	/* test it */

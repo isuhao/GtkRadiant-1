@@ -305,7 +305,11 @@ void WriteRBSPFile( const char *filename ){
 
 	/* add marker lump */
 	time( &t );
+#ifdef SMOKINGUNS
+	sprintf( marker, "I LOVE MY Q3MAP2 %s, Smokin'Guns %s flavour, on %s)", Q3MAP_VERSION, SG_Q3MAP_VERSION, asctime( localtime( &t ) ) );
+#else
 	sprintf( marker, "I LOVE MY Q3MAP2 %s on %s)", Q3MAP_VERSION, asctime( localtime( &t ) ) );
+#endif
 	AddLump( file, (bspHeader_t*) header, 0, marker, strlen( marker ) + 1 );
 
 	/* add lumps */

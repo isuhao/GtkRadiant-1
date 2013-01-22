@@ -40,7 +40,7 @@
 				Name="VCCLCompilerTool"
 				Optimization="0"
 				AdditionalIncludeDirectories="&quot;$(SolutionDir)\include&quot;;&quot;$(SolutionDir)\tools\quake3\common&quot;;&quot;$(SolutionDir)\libs&quot;;&quot;$(SolutionDir)\..\gtk-2.16.6\include\glib-2.0&quot;;&quot;$(SolutionDir)\..\gtk-2.16.6\lib\glib-2.0\include&quot;;&quot;$(SolutionDir)\..\libxml2-2.7.3\include\libxml2&quot;;&quot;$(SolutionDir)\..\gtk-2.16.6\include\libpng14&quot;;&quot;$(SolutionDir)\..\gtk-2.16.6\include&quot;;&quot;$(SolutionDir)\..\jpeg-8c\include&quot;"
-				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE;"
+				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE;SMOKINGUNS"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="3"
@@ -113,7 +113,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				AdditionalIncludeDirectories="&quot;$(SolutionDir)\include&quot;;&quot;$(SolutionDir)\tools\quake3\common&quot;;&quot;$(SolutionDir)\libs&quot;;&quot;$(SolutionDir)\..\gtk-2.16.6\include\glib-2.0&quot;;&quot;$(SolutionDir)\..\gtk-2.16.6\lib\glib-2.0\include&quot;;&quot;$(SolutionDir)\..\libxml2-2.7.3\include\libxml2&quot;;&quot;$(SolutionDir)\..\gtk-2.16.6\include\libpng14&quot;;&quot;$(SolutionDir)\..\gtk-2.16.6\include&quot;;&quot;$(SolutionDir)\..\jpeg-8c\include&quot;"
-				PreprocessorDefinitions="WIN32;NDEBUG;_CONSOLE;"
+				PreprocessorDefinitions="WIN32;NDEBUG;_CONSOLE;SMOKINGUNS"
 				RuntimeLibrary="2"
 				UsePrecompiledHeader="0"
 				WarningLevel="3"

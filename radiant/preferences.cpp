@@ -3341,6 +3341,9 @@ void CGameInstall::BuildDialog() {
 		case GAME_QL:
 			gtk_combo_box_append_text( GTK_COMBO_BOX( combo ), _( "Quake Live" ) );
 			break;
+		case GAME_SMOKINGUNS:
+			gtk_combo_box_append_text( GTK_COMBO_BOX( combo ), _( "Smokin'Guns" ) );
+			break;
 		}
 		iGame++;
 	}
@@ -3454,6 +3457,9 @@ void CGameInstall::Run() {
 		break;
 	case GAME_QL:
 		gameFilePath += "ql.game";
+		break;
+	case GAME_SMOKINGUNS:
+		gameFilePath += "smokinguns.game";
 		break;
 	}
 
@@ -3646,6 +3652,18 @@ void CGameInstall::Run() {
 		fprintf( fg, "  basegame=\"baseq3\"\n" );
 		break;
 	}
+	case GAME_SMOKINGUNS: {
+		fprintf( fg, "  "TOOLS_ATTRIBUTE "=\"%sinstalls/" SG_PACK "/game\"\n", g_strAppPath.GetBuffer() );
+		fprintf( fg, "  prefix=\".smokinguns\"\n" );
+		Str source = g_strAppPath.GetBuffer();
+		source += "installs/";
+		source += SG_PACK;
+		source += "/install/";
+		Str dest = m_strEngine.GetBuffer();
+		radCopyTree( source.GetBuffer(), dest.GetBuffer() );
+		fprintf( fg, "  basegame=\"smokinguns\"\n" );
+		break;
+	}
 	}
 	fprintf( fg, "/>\n" );
 	fclose( fg );
@@ -3701,7 +3719,12 @@ void CGameInstall::ScanGames() {
 		if ( stricmp( dirname, QL_PACK ) == 0 ) {
 			m_availGames[ iGame++ ] = GAME_QL;
 		}
+		if ( stricmp( dirname, SG_PACK ) == 0 ) {
+			m_availGames[ iGame++ ] = GAME_SMOKINGUNS;
+		}
 	}
-	Sys_Printf( "No installable games found in: %s\n",
+	if ( iGame == 0 ) {
+		Sys_Printf( "No installable games found in: %s\n",
 				pakPaths.GetBuffer() );
+	}
 }

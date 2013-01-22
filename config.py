@@ -259,7 +259,7 @@ class Config:
 		env.Append( CCFLAGS = baseflags )
 		env.Append( CXXFLAGS = baseflags + [ '-fpermissive', '-fvisibility-inlines-hidden' ] )
 		env.Append( CPPPATH = [ 'include', 'libs' ] )
-		env.Append( CPPDEFINES = [ 'Q_NO_STLPORT' ] )
+		env.Append( CPPDEFINES = [ 'Q_NO_STLPORT', 'SMOKINGUNS' ] )
 		if ( config == 'debug' ):
 			env.Append( CFLAGS = [ '-g' ] )
 			env.Append( CXXFLAGS = [ '-g' ] )

@@ -1815,7 +1815,20 @@ void LightWorld( void ){
 	}
 }
 
+#ifdef SMOKINGUNS
+//added by spoon to get back the changed surfaceflags
+void LoadSurfaceFlags(char *filename){
+	int i;
 
+	for(i=0; i<numBSPShaders;i++){
+		shaderInfo_t	*si;
+
+		si = ShaderInfoForShader( bspShaders[i].shader );
+		
+		bspShaders[i].surfaceFlags = si->surfaceFlags;
+	}
+}
+#endif
 
 /*
    LightMain()
@@ -2278,6 +2291,16 @@ int LightMain( int argc, char **argv ){
 	/* load bsp file */
 	LoadBSPFile( source );
 
+#ifdef SMOKINGUNS
+	StripExtension (source);
+	DefaultExtension (source, ".tex");
+
+	LoadSurfaceFlags(source);
+
+	StripExtension (source);
+	DefaultExtension (source, ".bsp");
+#endif
+
 	/* parse bsp entities */
 	ParseEntities();
 
@@ -2300,6 +2323,12 @@ int LightMain( int argc, char **argv ){
 
 	/* light the world */
 	LightWorld();
+
+#ifdef SMOKINGUNS
+	StripExtension (source);
+	WriteTexFile(source);
+	DefaultExtension (source, ".bsp");
+#endif
 
 	/* ydnar: store off lightmaps */
 	StoreSurfaceLightmaps();

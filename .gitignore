@@ -1,7 +1,15 @@
-/install/q3map2
+/install/q3map2*
+/install/q3data
 /install/radiant.bin
+/install/lib*
 /.sconsign.dblite
 /site.sconf
 /build
 *.pyc
 *.so
+/install/installs/ETPack
+/install/installs/Q3Pack
+/install/installs/QLPack
+/install/installs/UrTPack
+/install/games
+unnamed.map

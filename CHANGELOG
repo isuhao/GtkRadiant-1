@@ -1,0 +1,20 @@
+
+== Smokin'Guns 1.2.1 flavour ==
+
+Not specific to Smokin'Guns:
+ * Fixed stupid message where GtkRadiant always says:
+   "No installable games found in: install/installs"
+   This message was reported in the journal even if it really found a game pack.
+
+For Smokin'Guns:
+ * Imported old q3map2 modifications by spoon from the v0.0.1 q3map2 for WesternQuake3
+ * Set q3map2 sub-version to 1.2b1 to follow Smokin'Guns versionning
+ * Fixed q3map2 Smokin'Guns flavour build under linux
+ * Fixed a test involving compiler warning but also potential buffer overflow
+ * Added support for lava content making dynamite explodes and molotov burns
+ * Added support for "-game smokinguns" option
+ * Added SMOKINGUNS define in CPPDEFINES so q3map2 builds with Smokin'Guns modifications
+ * Added Smokin'Guns map Pack from sg_mapping_toolz_v2.zip available at ModDB
+   (see http://www.moddb.com/games/smokin-guns/downloads/sg-mapping-toolz-v2zip)
+ * Updated radiant to support Smokin'Guns map Pack.
+ * Updated Smokin'Guns map pack to use "-game smokinguns" option with q3map2 tool

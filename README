@@ -1,0 +1,23 @@
+This is a fork dedicated to Smokin'Guns mapping.
+
+It includes up-to-date Smokin'Guns mapping Pack under /install/installs/SmokinGunsPack.
+
+Radiant binary is updated to support Smokin'Guns mapping Pack.
+
+It also includes few q3map2 modifications related to Smokin'Guns game. This q3map2
+should only by used to compile Smokin'Guns maps.
+
+You'll find support to map for Smokin'Guns at http://forum.smokin-guns.org/viewforum.php?f=23
+where you'll only have to register the forum to ask any question.
+
+Smokin'Guns site: http://www.smokin-guns.org
+
+== Install under Linux ==
+
+You need at least scons tool to build and install the project.
+
+ 1. Checkout the repository
+ 2. Change to the checked out folder
+ 3. Run "scons" or just "scons target=q3map2" to only build q3map2
+ 4. Wait reading our forum... :P
+ 5. Run install/radiant.bin or submit your problem on our forum if the build fails
