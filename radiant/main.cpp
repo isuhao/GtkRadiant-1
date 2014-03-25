@@ -31,6 +31,7 @@
   #include <sys/wait.h>
   #include <signal.h>
   #include <sys/stat.h>
+  #include <fcntl.h>
 #endif
 
 #include <gtk/gtk.h>
@@ -92,6 +93,7 @@ gint try_destroy_splash( gpointer data ){
 	return FALSE;
 }
 
+#ifndef SKIP_SPLASH
 static void create_splash() {
     splash_screen = gtk_window_new(GTK_WINDOW_TOPLEVEL);
     gtk_window_set_title(GTK_WINDOW(splash_screen), "Splash Screen");
@@ -111,6 +113,7 @@ static void create_splash() {
 	while(gtk_events_pending())
 		gtk_main_iteration();
 }
+#endif
 
 // =============================================================================
 // Loki stuff
@@ -222,7 +225,7 @@ void loki_initpaths( char *argv0 ){
 
 	home = loki_gethomedir();
 	if ( home == NULL ) {
-		home = ".";
+		home = const_cast<char*>(".");
 	}
 
 	if ( *game_name == 0 ) { /* Game name defaults to argv[0] */
@@ -412,9 +415,8 @@ void error_redirect( const gchar *domain, GLogLevelFlags log_level, const gchar 
 #define LOCALEDIR "lang"
 
 int main( int argc, char* argv[] ) {
-	char *libgl, *ptr;
+	const char *libgl;
 	int i, j, k;
-
 
 	/*
 	   Rambetter on Sat Nov 13, 2010:
@@ -460,19 +462,19 @@ int main( int argc, char* argv[] ) {
 	   _after_ gtk_init(), I chose to fix this problem via environment variable.  I think it's cleaner
 	   that way.
 	 */
-	putenv( "LC_NUMERIC=C" );
+	putenv( (char *)"LC_NUMERIC=C" );
 
-#ifdef _WIN32
-	libgl = "opengl32.dll";
-#endif
-
-#if defined ( __linux__ )
-	libgl = "libGL.so.1";
-#endif
-
-#ifdef __APPLE__
-	libgl = "/usr/X11R6/lib/libGL.1.dylib";
-#endif
+	// Use the same environment variable for resolving libGL as libgtkglext does.
+	libgl = getenv("GDK_GL_LIBGL_PATH");
+	if ( libgl == NULL ) {
+		#if defined ( _WIN32 )
+			libgl = "opengl32.dll";
+		#elif defined ( __linux__ )
+			libgl = "libGL.so.1";
+		#elif defined ( __APPLE__ )
+			libgl = "/opt/local/lib/libGL.dylib";
+		#endif
+	}
 
 #if defined ( __linux__ ) || defined ( __APPLE__ )
 	// Give away unnecessary root privileges.
@@ -498,10 +500,6 @@ int main( int argc, char* argv[] ) {
 	// TODO: Find a better place to call this.
 	gtk_glwidget_create_font();
 
-	if ( ( ptr = getenv( "Q3R_LIBGL" ) ) != NULL ) {
-		libgl = ptr;
-	}
-
 	for ( i = 1; i < argc; i++ )
 	{
 		char* param = argv[i];
@@ -509,12 +507,7 @@ int main( int argc, char* argv[] ) {
 		if ( param[0] == '-' && param[1] == '-' ) {
 			param += 2;
 
-			if ( ( strcmp( param, "libgl" ) == 0 ) && ( i != argc ) ) {
-				libgl = argv[i + 1];
-				argv[i] = argv[i + 1] = NULL;
-				i++;
-			}
-			else if ( strcmp( param, "builddefs" ) == 0 ) {
+			if ( strcmp( param, "builddefs" ) == 0 ) {
 				g_bBuildList = true;
 				argv[i] = NULL;
 			}
@@ -940,9 +933,6 @@ void QE_ExpandBspString( char *bspaction, GPtrArray *out_array, char *mapname ){
 	strcpy( src, mapname );
 	strlwr( src );
 	in = strstr( src, "maps/" );
-	if ( !in ) {
-		in = strstr( src, "maps/" );
-	}
 	if ( in ) {
 		in += 5;
 		strcpy( base, in );
@@ -984,7 +974,7 @@ void QE_ExpandBspString( char *bspaction, GPtrArray *out_array, char *mapname ){
 	QE_ConvertDOSToUnixName( src, src );
 
 	// initialise the first step
-	out = new char[BIG_PATH_MAX]; //% PATH_MAX
+	out = new char[BIG_PATH_MAX];
 	g_ptr_array_add( out_array, out );
 
 	in = ValueForKey( g_qeglobals.d_project_entity, bspaction );
@@ -1025,7 +1015,7 @@ void QE_ExpandBspString( char *bspaction, GPtrArray *out_array, char *mapname ){
 				// start a new step
 				*out = 0;
 				in = in + 2;
-				out = new char[BIG_PATH_MAX]; //% PATH_MAX
+				out = new char[BIG_PATH_MAX];
 				g_ptr_array_add( out_array, out );
 			}
 		}
@@ -1064,12 +1054,66 @@ void SaveWithRegion( char *name ){
 	Map_SaveFile( name, region_active );
 }
 
+#if defined ( __linux__ ) || defined ( __APPLE__ )
+typedef struct {
+	pid_t pid;
+	int status;
+	int pipes[2];
+} bsp_child_process_t;
+
+/*
+ * @brief A gtk_idle monitor for redirecting stdout and stderr of the BSP
+ * compiler process to the Radiant console. This is used on UNIX platforms for
+ * older BSP tools that do not support the XML-based network monitoring found
+ * in watchbsp.cpp and feedback.cpp.
+ */
+static gboolean RunBsp_CaptureOutput(void *data) {
+	bsp_child_process_t *process = (bsp_child_process_t *) data;
+	pid_t pid;
+
+	// if waitpid returns 0, the child process is alive
+	if ( ( pid = waitpid( process->pid, &process->status, WNOHANG ) ) == 0 ) {
+		char text[1024];
+		ssize_t len;
+
+		if ( (len = read( process->pipes[0], text, sizeof( text ) ) ) > 0 ) {
+			GtkTextView *view = GTK_TEXT_VIEW( g_qeglobals_gui.d_edit );
+			GtkTextBuffer *buffer = gtk_text_view_get_buffer( view );
+
+			if ( buffer ) {
+				GtkTextIter iter;
+				gtk_text_buffer_get_end_iter( buffer, &iter );
+				gtk_text_buffer_insert( buffer, &iter, text, len );
+
+				gtk_text_buffer_get_end_iter( buffer, &iter );
+				gtk_text_view_scroll_to_iter( view, &iter , 0.0, false, 0.0, 0.0 );
+			}
+		}
+
+		return true; // retain the gtk_idle monitor
+	}
+
+	if ( pid == -1 ) {
+		Sys_Printf( "Failed to wait for %d: %s\n", process->pid, strerror( errno ) );
+	} else {
+		Sys_Printf( "Process %d terminated with status %d\n", process->pid, process->status );
+	}
+
+	close( process->pipes[0] );
+	close( process->pipes[1] );
+
+	free( process);
+
+	return false; // cancel the gtk_idle monitor
+}
+#endif
+
 void RunBsp( char *command ){
 	GPtrArray *sys;
-	char batpath[BIG_PATH_MAX]; //% PATH_MAX
-	char temppath[BIG_PATH_MAX]; //% PATH_MAX
-	char name[BIG_PATH_MAX];    //% PATH_MAX
-	char cWork[BIG_PATH_MAX];   //% PATH_MAX
+	char batpath[BIG_PATH_MAX];
+	char temppath[BIG_PATH_MAX];
+	char name[BIG_PATH_MAX];
+	char cWork[BIG_PATH_MAX];
 	FILE  *hFile;
 	unsigned int i;
 
@@ -1087,14 +1131,11 @@ void RunBsp( char *command ){
 		AddSlash( strPath );
 		strncpy( cWork, strPath, 1024 );
 		strcat( cWork, strFile );
-	}
-	else
-	{
+	} else {
 		strcpy( cWork, name );
 	}
 
 	// get the array ready
-	//++timo TODO: free the array, free the strings ourselves with delete[]
 	sys = g_ptr_array_new();
 
 	QE_ExpandBspString( command, sys, cWork );
@@ -1105,9 +1146,7 @@ void RunBsp( char *command ){
 		ExtractFileName( currentmap, bspname );
 		StripExtension( bspname );
 		g_pParentWnd->GetWatchBSP()->DoMonitoringLoop( sys, bspname );
-	}
-	else
-	{
+	} else {
 		// write all the steps in a single BAT / .sh file and run it, don't bother monitoring it
 		CString strSys;
 		for ( i = 0; i < sys->len; i++ )
@@ -1132,7 +1171,6 @@ void RunBsp( char *command ){
 		// write qe3bsp.sh
 		sprintf( batpath, "%sqe3bsp.sh", temppath );
 		Sys_Printf( "Writing the compile script to '%s'\n", batpath );
-		Sys_Printf( "The build output will be saved in '%sjunk.txt'\n", temppath );
 		hFile = fopen( batpath, "w" );
 		if ( !hFile ) {
 			Error( "Can't write to %s", batpath );
@@ -1158,21 +1196,33 @@ void RunBsp( char *command ){
 		Pointfile_Delete();
 
 #if defined ( __linux__ ) || defined ( __APPLE__ )
+		bsp_child_process_t *process = ( bsp_child_process_t *) malloc( sizeof( bsp_child_process_t ) );
+		memset( process, 0, sizeof( *process ) );
 
-		pid_t pid;
+		pipe( process->pipes );
 
-		pid = fork();
-		switch ( pid )
+		fcntl( process->pipes[0], F_SETFL, O_NONBLOCK );
+		fcntl( process->pipes[1], F_SETFL, O_NONBLOCK );
+
+		process->pid = fork();
+		switch ( process->pid )
 		{
 		case -1:
 			Error( "CreateProcess failed" );
 			break;
 		case 0:
-			execlp( batpath, batpath, NULL );
-			printf( "execlp error !" );
-			_exit( 0 );
+			close( process->pipes[0] ); // close reading end in the child
+
+			dup2( process->pipes[1], 1 ); // send stdout to the pipe
+			dup2( process->pipes[1], 2 ); // send stderr to the pipe
+
+			execlp( batpath, batpath, (char *) NULL ); // execute the script
+
+			fprintf( stderr, "Failed to execute %s: %s", batpath, strerror( errno ) );
+			_exit( 1 );
 			break;
 		default:
+			g_idle_add( RunBsp_CaptureOutput, (void *) process );
 			break;
 		}
 #endif
@@ -1184,68 +1234,10 @@ void RunBsp( char *command ){
 		WinExec( batpath, SW_SHOWNORMAL );
 #endif
 	}
-#ifdef _DEBUG
-	// yeah, do it .. but not now right before 1.1-TA-beta release
-	Sys_Printf( "TODO: erase GPtrArray\n" );
-#endif
+        // free the strings and the array
+        for ( i = 0; i < sys->len; i++ ) {
+          delete[] (char *)g_ptr_array_index( sys, i );
+        }
+        g_ptr_array_free( sys, TRUE );
+        sys = NULL;
 }
-
-#if 0
-
-#ifdef _WIN32
-
-int WINAPI QEW_SetupPixelFormat( HDC hDC, qboolean zbuffer ){
-	static PIXELFORMATDESCRIPTOR pfd = {
-		sizeof( PIXELFORMATDESCRIPTOR ), // size of this pfd
-		1,                          // version number
-		PFD_DRAW_TO_WINDOW |        // support window
-		PFD_SUPPORT_OPENGL |        // support OpenGL
-		PFD_DOUBLEBUFFER,           // double buffered
-		PFD_TYPE_RGBA,              // RGBA type
-		24,                         // 24-bit color depth
-		0, 0, 0, 0, 0, 0,           // color bits ignored
-		0,                          // no alpha buffer
-		0,                          // shift bit ignored
-		0,                          // no accumulation buffer
-		0, 0, 0, 0,                 // accum bits ignored
-		32,                         // depth bits
-		0,                          // no stencil buffer
-		0,                          // no auxiliary buffer
-		PFD_MAIN_PLANE,             // main layer
-		0,                          // reserved
-		0, 0, 0                     // layer masks ignored
-	};                            //
-	int pixelformat = 0;
-
-	zbuffer = true;
-	if ( !zbuffer ) {
-		pfd.cDepthBits = 0;
-	}
-
-	if ( ( pixelformat = ChoosePixelFormat( hDC, &pfd ) ) == 0 ) {
-		LPVOID lpMsgBuf;
-		FormatMessage(
-			FORMAT_MESSAGE_ALLOCATE_BUFFER |
-			FORMAT_MESSAGE_FROM_SYSTEM |
-			FORMAT_MESSAGE_IGNORE_INSERTS,
-			NULL,
-			GetLastError(),
-			MAKELANGID( LANG_NEUTRAL, SUBLANG_DEFAULT ),    // Default language
-			(LPTSTR) &lpMsgBuf,
-			0,
-			NULL
-			);
-		Sys_FPrintf( SYS_WRN, "GetLastError: %s", lpMsgBuf );
-		Error( "ChoosePixelFormat failed" );
-	}
-
-	if ( !SetPixelFormat( hDC, pixelformat, &pfd ) ) {
-		Error( "SetPixelFormat failed" );
-	}
-
-	return pixelformat;
-}
-
-#endif
-
-#endif

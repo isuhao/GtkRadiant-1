@@ -436,13 +436,15 @@ xmlDocPtr ParseXMLFile( const char* filename, bool validate = false ){
 
 // copy a string r to a buffer w
 // replace $string as appropriate
-void ReplaceTemplates( char* w, const char* r ){
+static void ReplaceTemplates( char* w, const char* r ){
 	const char *p;
 	const char *__ENGINEPATH = "TEMPLATEenginepath";
 	const char *__USERHOMEPATH = "TEMPLATEuserhomepath";
 	const char *__TOOLSPATH = "TEMPLATEtoolspath";
+	const char *__EXECPATH = "TEMPLATEexecpath";
 	const char *__BASEDIR = "TEMPLATEbasedir";
 	const char *__APPPATH = "TEMPLATEapppath";
+	const char *__Q3MAP2 = "TEMPLATEq3map2";
 
 	// iterate through string r
 	while ( *r != '\0' )
@@ -465,9 +467,25 @@ void ReplaceTemplates( char* w, const char* r ){
 				r += strlen( __TOOLSPATH ) + 1;
 				p = g_strGameToolsPath.GetBuffer();
 			}
+			else if ( strncmp( r + 1, __EXECPATH, strlen( __EXECPATH ) ) == 0 ) {
+				r += strlen( __EXECPATH ) + 1;
+				p = g_strExecutablesPath.GetBuffer();
+			}
 			else if ( strncmp( r + 1, __APPPATH, strlen( __APPPATH ) ) == 0 ) {
 				r += strlen( __APPPATH ) + 1;
 				p = g_strAppPath.GetBuffer();
+			}
+			else if ( strncmp( r + 1, __Q3MAP2, strlen( __Q3MAP2 ) ) == 0 ) {
+				r += strlen( __Q3MAP2 ) + 1;
+				// see https://github.com/TTimo/GtkRadiant/issues/116
+#ifdef _WIN32
+				if ( g_PrefsDlg.m_bx64q3map2 ) {
+				  p = "x64/q3map2";
+				} else
+#endif
+				{
+				  p = "q3map2";
+				}
 			}
 			else
 			{
@@ -602,7 +620,7 @@ bool QE_LoadProject( const char *projectfile ){
 		str = g_pGameDescription->mBaseGame.GetBuffer();
 	}
 	g_qeglobals.m_strHomeMaps += str;
-	g_qeglobals.m_strHomeMaps += '/';
+	g_qeglobals.m_strHomeMaps += G_DIR_SEPARATOR;
 
 	// don't forget to create the dirs
 	Q_mkdir( g_qeglobals.m_strHomeGame.GetBuffer(), 0775 );
@@ -638,7 +656,7 @@ bool QE_LoadProject( const char *projectfile ){
 		// create the writable project file path
 		strcpy( buf, g_qeglobals.m_strHomeGame.GetBuffer() );
 		strcat( buf, g_pGameDescription->mBaseGame.GetBuffer() );
-		strcat( buf, "/scripts/" );
+		strcat( buf, G_DIR_SEPARATOR_S "scripts" G_DIR_SEPARATOR_S );
 		// while the filename is already in use, increment the number we add to the end
 		int counter = 0;
 		char pUser[PATH_MAX];
@@ -826,23 +844,22 @@ void QE_InitVFS( void ){
 	// if we have a mod dir
 	if ( *ValueForKey( g_qeglobals.d_project_entity, "gamename" ) != '\0' ) {
 
-#if defined ( __linux__ ) || defined ( __APPLE__ )
 		// ~/.<gameprefix>/<fs_game>
-		directory = g_qeglobals.m_strHomeGame.GetBuffer();
-		Q_mkdir( directory.GetBuffer(), 0775 );
-		directory += ValueForKey( g_qeglobals.d_project_entity, "gamename" );
-		Q_mkdir( directory.GetBuffer(), 0775 );
-		vfsInitDirectory( directory.GetBuffer() );
-		AddSlash( directory );
-		prefabs = directory;
-		// also create the maps dir, it will be used as prompt for load/save
-		directory += "/maps";
-		Q_mkdir( directory, 0775 );
-		// and the prefabs dir
-		prefabs += "/prefabs";
-		Q_mkdir( prefabs, 0775 );
-
-#endif
+		if ( g_qeglobals.m_strHomeGame.GetLength() ) {
+			directory = g_qeglobals.m_strHomeGame.GetBuffer();
+			Q_mkdir( directory.GetBuffer(), 0775 );
+			directory += ValueForKey( g_qeglobals.d_project_entity, "gamename" );
+			Q_mkdir( directory.GetBuffer(), 0775 );
+			vfsInitDirectory( directory.GetBuffer() );
+			AddSlash( directory );
+			prefabs = directory;
+			// also create the maps dir, it will be used as prompt for load/save
+			directory += "maps";
+			Q_mkdir( directory, 0775 );
+			// and the prefabs dir
+			prefabs += "prefabs";
+			Q_mkdir( prefabs, 0775 );
+		}
 
 		// <fs_basepath>/<fs_game>
 		directory = g_pGameDescription->mEnginePath;
@@ -852,19 +869,19 @@ void QE_InitVFS( void ){
 		AddSlash( directory );
 		prefabs = directory;
 		// also create the maps dir, it will be used as prompt for load/save
-		directory += "/maps";
+		directory += "maps";
 		Q_mkdir( directory.GetBuffer(), 0775 );
 		// and the prefabs dir
-		prefabs += "/prefabs";
+		prefabs += "prefabs";
 		Q_mkdir( prefabs, 0775 );
 	}
 
-#if defined ( __linux__ ) || defined ( __APPLE__ )
 	// ~/.<gameprefix>/<fs_main>
-	directory = g_qeglobals.m_strHomeGame.GetBuffer();
-	directory += g_pGameDescription->mBaseGame;
-	vfsInitDirectory( directory.GetBuffer() );
-#endif
+	if ( g_qeglobals.m_strHomeGame.GetLength() ) {
+		directory = g_qeglobals.m_strHomeGame.GetBuffer();
+		directory += g_pGameDescription->mBaseGame;
+		vfsInitDirectory( directory.GetBuffer() );
+	}
 
 	// <fs_basepath>/<fs_main>
 	directory = g_pGameDescription->mEnginePath;
@@ -1083,7 +1100,7 @@ char    *argv[MAX_NUM_ARGVS];
  */
 void ParseCommandLine( char *lpCmdLine ){
 	argc = 1;
-	argv[0] = "programname";
+	argv[0] = const_cast<char*>("programname");
 
 	while ( *lpCmdLine && ( argc < MAX_NUM_ARGVS ) )
 	{
@@ -1200,6 +1217,17 @@ bool Sys_AltDown(){
 	}
 
 	x = XKeysymToKeycode( GDK_DISPLAY(), XK_Alt_R );
+	if ( keys[x / 8] & ( 1 << ( x % 8 ) ) ) {
+		return true;
+	}
+
+	// For Apple, let users use their Command keys since Alt + X11 is hosed
+	x = XKeysymToKeycode( GDK_DISPLAY(), XK_Meta_L );
+	if ( keys[x / 8] & ( 1 << ( x % 8 ) ) ) {
+		return true;
+	}
+
+	x = XKeysymToKeycode( GDK_DISPLAY(), XK_Meta_R );
 	if ( keys[x / 8] & ( 1 << ( x % 8 ) ) ) {
 		return true;
 	}
@@ -1588,9 +1616,8 @@ void FillBSPMenu(){
 
 void AddSlash( CString& strPath ){
 	if ( strPath.GetLength() > 0 ) {
-		if ( ( strPath.GetAt( strPath.GetLength() - 1 ) != '/' ) &&
-			 ( strPath.GetAt( strPath.GetLength() - 1 ) != '\\' ) ) {
-			strPath += '/';
+		if ( !g_str_has_suffix( strPath.GetBuffer(), G_DIR_SEPARATOR_S ) ) {
+			strPath += G_DIR_SEPARATOR_S;
 		}
 	}
 }
@@ -1741,11 +1768,11 @@ extern "C" void Sys_FPrintf_VA( int level, const char *text, va_list args ) {
 				tag = standard_tag;
 				break;
 			}
-			gtk_text_buffer_insert_with_tags( buffer, &iter, buf, length, tag, NULL );
+			gtk_text_buffer_insert_with_tags( buffer, &iter, buf, length, tag, (char *) NULL );
 
 			gtk_text_view_scroll_mark_onscreen( GTK_TEXT_VIEW( g_qeglobals_gui.d_edit ), end );
 
-			// update console widget immediatly if we're doing something time-consuming
+			// update console widget immediately if we're doing something time-consuming
 			if ( !g_bScreenUpdates && GTK_WIDGET_REALIZED( g_qeglobals_gui.d_edit ) ) {
 				gtk_grab_add( g_qeglobals_gui.d_edit );
 

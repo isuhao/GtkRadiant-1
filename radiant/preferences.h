@@ -173,19 +173,18 @@ Str mGameName;   ///< name of the game used in dialogs
 Str mGameFile;   ///< the .game file that describes this game
 Str mBaseGame;   ///< basegame directory
 Str mEnginePath;   ///< path to the engine
+Str mExecutablesPath;   ///< path to external executables, e.g. /usr/local/bin
 Str mEngine;   ///< engine name
 Str mMultiplayerEngine;   ///< engine name
-#if defined ( __linux__ ) || defined ( __APPLE__ )
-Str mUserPathPrefix;   ///< prefix for ~/.q3a ~/.wolf init, only on *nix
-#endif
+Str mUserPathPrefix;   ///< prefix for ~/.q3a ~/.wolf init on *nix, or \My Document\My Games\ on Windows
 Str mShaderPath;   ///< the path in which to look for shaders
 Str mShaderlist;   ///< shaderlist file
 float mTextureDefaultScale;   ///< default scale (0.5 in q3, 1.0 in q1/q2, 0.25 in JK2 ..)
 bool mEClassSingleLoad;   ///< only load a single eclass definition file
 bool mNoPatch;   ///< this game doesn't support patch technology
 Str mCaulkShader;   ///< the shader to use for caulking
-bool quake2;   ///< set this to true to get quake2
 bool noMapsInHome;   ///< set this if you want to open the engine path/base dir/maps dir for map open/save dialoges */
+bool idTech2;  // set this to true for idTech2 games
 
 CGameDescription() { mpDoc = NULL; }
 /*!
@@ -203,6 +202,22 @@ void Dump();
    select games, copy editing assets and write out configuration files
  */
 
+#define Q3_GAME "q3.game"
+#define URT_GAME "urt.game"
+#define UFOAI_GAME "ufoai.game"
+#define Q2W_GAME "q2w.game"
+#define WARSOW_GAME "warsow.game"
+#define NEXUIZ_GAME "nexuiz.game"
+#define Q2_GAME "q2.game"
+#define TREMULOUS_GAME "tremulous.game"
+#define JA_GAME "ja.game"
+#define REACTION_GAME "reaction.game"
+#define ET_GAME "et.game"
+#define QL_GAME "ql.game"
+#define STVEF_GAME "stvef.game"
+#define WOLF_GAME "wolf.game"
+#define SG_GAME "smokinguns.game"
+
 #define Q3_PACK "Q3Pack"
 #define URT_PACK "UrTPack"
 #define UFOAI_PACK "UFOAIPack"
@@ -215,19 +230,22 @@ void Dump();
 #define REACTION_PACK "ReactionPack"
 #define ET_PACK "ETPack"
 #define QL_PACK "QLPack"
+#define STVEF_PACK "STVEFPack"
+#define WOLF_PACK "WolfPack"
 #define SG_PACK "SmokinGunsPack"
 
 class CGameInstall : public Dialog {
 public:
-CGameInstall();
-void ScanGames();
-void Run();
-void BuildDialog();
+  CGameInstall();
+  void ScanGames();
+  void Run();
+  void BuildDialog();
 
-static void OnBtnBrowseEngine( GtkWidget *widget, gpointer data );
-static void OnGameSelectChanged( GtkWidget *widget, gpointer data );
+  static void OnBtnBrowseEngine( GtkWidget *widget, gpointer data );
+  static void OnBtnBrowseExecutables( GtkWidget *widget, gpointer data );
+  static void OnGameSelectChanged( GtkWidget *widget, gpointer data );
 
-enum gameType_e {
+  enum gameType_e {
 	GAME_NONE = 0,
 	GAME_Q3 = 1,
 	GAME_URT,
@@ -241,18 +259,23 @@ enum gameType_e {
 	GAME_REACTION,
 	GAME_ET,
 	GAME_QL,
+	GAME_STVEF,
+	GAME_WOLF,
 	GAME_SMOKINGUNS,
 	GAME_COUNT
-};
+  };
 
 protected:
-Str m_strName;
-Str m_strMod;
-Str m_strEngine;
-int m_nComboSelect;
+  Str m_strName;
+  Str m_strMod;
+  Str m_strEngine;
+  Str m_strExecutables;
+  int m_nComboSelect;
 
-// maps from m_nComboSelect to the games
-int m_availGames[GAME_COUNT];
+  // maps from m_nComboSelect to the games
+  int m_availGames[GAME_COUNT];
+
+  GtkWidget * m_executablesVBox;
 };
 
 /*!
@@ -626,6 +649,7 @@ bool m_bGLLighting;
 bool m_bTexturesShaderlistOnly;
 int m_nSubdivisions;
 float m_fDefTextureScale;
+bool m_bCaulkNewBrushes;
 bool m_bFloatingZ;
 bool m_bLatchedFloatingZ;
 // Gef: Kyro GL_POINT workaround
@@ -697,6 +721,9 @@ int m_nTextureCompressionFormat;
 int m_nLightRadiuses;
 
 bool m_bQ3Map2Texturing;
+#ifdef _WIN32
+bool m_bx64q3map2;
+#endif
 
 #ifdef ATIHACK_812
 bool m_bGlATIHack;

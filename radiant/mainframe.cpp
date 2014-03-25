@@ -71,6 +71,13 @@ CString g_strPluginsDir;                ///< name of plugins directory, always s
 CString g_strModulesDir;                ///< name of modules directory, always sub-directory of toolspath
 
 /*!
+   Points to an optional directory where external (read: not local to the game
+   install) may reside. For example, on Linux, a game's executables might live
+   in /usr/local/bin. On Mac, they might be in /Applications/Game.app/Contents/MacOS.
+ */
+CString g_strExecutablesPath;
+
+/*!
    directory for temp files
    NOTE: on *nix this is were we check for .pid
  */
@@ -683,6 +690,7 @@ gint HandleCommand( GtkWidget *widget, gpointer data ){
 		  case ID_SELECT_SNAPTOGRID: g_pParentWnd->OnSnapToGrid(); break;
 		  case ID_SELECT_ALL: g_pParentWnd->OnSelectAll(); break;
 		  case ID_SELECTION_INVERT: g_pParentWnd->OnSelectionInvert(); break;
+		  case ID_TOGGLE_DETAIL: g_pParentWnd->OnToggleDetail(); break;
 		  }}
 
 	return TRUE;
@@ -1561,7 +1569,7 @@ void MainFrame::create_main_menu( GtkWidget *window, GtkWidget *vbox ){
 		menu_tearoff( menu );
 	}
 
-	item = create_menu_item_with_mnemonic( menu, _( "Manual" ),
+	item = create_menu_item_with_mnemonic( menu, _( "GtkRadiant Manual" ),
 										   GTK_SIGNAL_FUNC( HandleCommand ), ID_HELP );
 	gtk_widget_add_accelerator( item, "activate", accel, GDK_F1, (GdkModifierType)0, GTK_ACCEL_VISIBLE );
 
@@ -1572,11 +1580,11 @@ void MainFrame::create_main_menu( GtkWidget *window, GtkWidget *vbox ){
 	// TTimo: this is in global.xlink now
 	//create_menu_item_with_mnemonic (menu, "Links",
 	//                  GTK_SIGNAL_FUNC (HandleCommand), ID_HELP_LINKS);
-	create_menu_item_with_mnemonic( menu, _( "Bug report" ),
+	create_menu_item_with_mnemonic( menu, _( "Report a Bug" ),
 									GTK_SIGNAL_FUNC( HandleCommand ), ID_HELP_BUGREPORT );
-	create_menu_item_with_mnemonic( menu, _( "Shortcuts list" ),
+	create_menu_item_with_mnemonic( menu, _( "View Shortcuts" ),
 									GTK_SIGNAL_FUNC( HandleCommand ), ID_HELP_COMMANDLIST );
-	create_menu_item_with_mnemonic( menu, _( "_About" ),
+	create_menu_item_with_mnemonic( menu, _( "_About GtkRadiant" ),
 									GTK_SIGNAL_FUNC( HandleCommand ), ID_HELP_ABOUT );
 
 
@@ -1748,6 +1756,11 @@ void MainFrame::create_main_toolbar( GtkWidget *window, GtkWidget *vbox ){
 										GTK_SIGNAL_FUNC( HandleCommand ), GINT_TO_POINTER( ID_VIEW_CLIPPER ) );
 		g_object_set_data( G_OBJECT( window ), "tb_view_clipper", w );
 	}
+
+	w = gtk_toolbar_append_element( GTK_TOOLBAR( toolbar ), GTK_TOOLBAR_CHILD_TOGGLEBUTTON, NULL,
+										"", _( "Make Detail Brushes" ), "", new_image_icon("toggle_struct.png"),
+										GTK_SIGNAL_FUNC( HandleCommand ), GINT_TO_POINTER( ID_TOGGLE_DETAIL ) );
+		g_object_set_data( G_OBJECT( window ), "tb_toggle_detail", w );
 
 	gtk_toolbar_append_space( GTK_TOOLBAR( toolbar ) );
 
@@ -2081,7 +2094,7 @@ enum
 };
 
 static const GtkTargetEntry clipboard_targets[] = {
-	{ "RADIANT_CLIPPINGS", 0, RADIANT_CLIPPINGS, },
+	{ (gchar *)"RADIANT_CLIPPINGS", 0, RADIANT_CLIPPINGS, },
 };
 
 static void clipboard_get( GtkClipboard *clipboard, GtkSelectionData *selection_data, guint info, gpointer user_data_or_owner ){
@@ -2110,12 +2123,13 @@ static void clipboard_clear( GtkClipboard *clipboard, gpointer user_data_or_owne
 }
 
 static void clipboard_received( GtkClipboard *clipboard, GtkSelectionData *data, gpointer user_data ){
-	g_Clipboard.SetLength( 0 );
+	//g_Clipboard.SetLength( 0 );
 
 	if ( data->length < 0 ) {
 		Sys_FPrintf( SYS_ERR, "Error retrieving selection\n" );
 	}
 	else if ( strcmp( gdk_atom_name( data->type ), clipboard_targets[0].target ) == 0 ) {
+		g_Clipboard.SetLength( 0 );
 		g_Clipboard.Write( data->data, data->length );
 	}
 
@@ -2491,10 +2505,16 @@ void MainFrame::Create(){
 	// not needed on win32, it's in the .rc
 #ifndef _WIN32
 	{
-		GdkPixmap *pixmap;
-		GdkBitmap *mask;
-		load_pixmap( "icon.bmp", window, &pixmap, &mask );
-		gdk_window_set_icon( window->window, NULL, pixmap, mask );
+		CString icon = g_strBitmapsPath;
+		icon += "icon.png";
+
+		GError *error = NULL;
+
+		gtk_window_set_icon_from_file( GTK_WINDOW( window ), icon.GetBuffer(), &error );
+		if ( error != NULL ) {
+			Sys_Printf( "Failed to load icon: %s\n", error->message );
+			g_error_free( error );
+		}
 	}
 #endif
 
@@ -2808,8 +2828,6 @@ void MainFrame::Create(){
 			}
 		}
 
-		//    g_qeglobals_gui.d_edit = NULL;
-
 		{
 			m_pTexWnd = new TexWnd();
 			GtkWidget* frame = create_framed_texwnd( m_pTexWnd );
@@ -2822,7 +2840,6 @@ void MainFrame::Create(){
 		}
 
 		m_pTexWnd->m_pParent = g_pGroupDlg->m_pWidget;
-//    gtk_widget_realize (m_pTexWnd->GetWidget ());
 		m_pZWnd = create_floating_zwnd( this );
 
 		while ( gtk_events_pending() )
@@ -2856,7 +2873,6 @@ void MainFrame::Create(){
 
 	g_pParentWnd->OnEntitiesSetViewAs( 0 );
 
-//  m_wndTextureBar.Create (vbox);
 	create_main_statusbar( window, vbox );
 
 	LoadCommandMap();
@@ -2879,9 +2895,6 @@ void MainFrame::Create(){
 	item = GTK_WIDGET( g_object_get_data( G_OBJECT( m_pWidget ), "menu_textures_shaderlistonly" ) );
 	gtk_check_menu_item_set_active( GTK_CHECK_MENU_ITEM( item ), g_PrefsDlg.m_bTexturesShaderlistOnly ? TRUE : FALSE );
 	g_bIgnoreCommands--;
-
-//  if (g_PrefsDlg.m_bTextureBar)
-//    gtk_widget_show (m_wndTextureBar.m_pWidget);
 
 	SetActiveXY( m_pXYWnd );
 
@@ -3060,7 +3073,7 @@ void RefreshModelSkin( GSList **pModels, entitymodel_t *model ){
 #endif
 
 		// and also keeping it so we have an actual count of empty models
-		g_slist_append( *pModels, model );
+		*pModels = g_slist_append( *pModels, model );
 		return;
 	}
 	// do we have this model already?
@@ -5447,6 +5460,31 @@ void MainFrame::OnClipSelected(){
 	}
 }
 
+void MainFrame::OnToggleDetail(){
+	GtkWidget *w = GTK_WIDGET( g_object_get_data( G_OBJECT( m_pWidget ), "tb_toggle_detail" ) );
+	g_bIgnoreCommands++;
+	
+	if ( g_qeglobals.m_bMakeDetail == TRUE ) {
+		g_qeglobals.m_bMakeDetail = FALSE;
+		Sys_Printf( "Structural Brush mode activated\n" );
+
+		gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( w ), FALSE );
+		gtk_button_set_image( GTK_BUTTON( w ),new_image_icon( "toggle_struct.png" ) );
+		
+	}
+	else
+	{
+		g_qeglobals.m_bMakeDetail = TRUE;
+		Sys_Printf( "Detail Brush mode activated\n" );
+
+		gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( w ), TRUE );
+		gtk_button_set_image( GTK_BUTTON( w ), new_image_icon( "toggle_detail.png" ) );
+
+	}
+
+	g_bIgnoreCommands--;
+}
+
 void MainFrame::OnSplitSelected(){
 	if ( m_pActiveXY ) {
 		Undo_Start( "split selected" );
@@ -6476,11 +6514,7 @@ void MainFrame::OnPluginsRefresh(){
 
 // open the Q3Rad manual
 void MainFrame::OnHelp(){
-	// at least on win32, g_strGameToolsPath + "Q3Rad_Manual/index.htm"
-	Str help;
-	help = g_strAppPath;
-	help += "Q3Rad_Manual/index.htm";
-	OpenURL( help.GetBuffer() );
+	OpenURL( "http://icculus.org/gtkradiant/documentation/q3radiant_manual/index.htm" );
 }
 
 // FIXME: we'll go towards a unified help thing soon
@@ -6492,7 +6526,7 @@ void MainFrame::OnHelpLinks(){
 }
 
 void MainFrame::OnHelpBugreport(){
-	OpenURL( "http://www.qeradiant.com/faq/fom-serve/cache/138.html" );
+	OpenURL( "https://github.com/TTimo/GtkRadiant/issues" );
 }
 
 void MainFrame::OnHelpCommandlist(){

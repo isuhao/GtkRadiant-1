@@ -29,6 +29,9 @@
 #pragma warning(disable : 4136)     // X86
 #pragma warning(disable : 4051)     // ALPHA
 #pragma warning(disable : 4800)
+
+#define _CRT_SECURE_NO_WARNINGS
+
 #endif
 
 // for interfaces, we require main plugin header included
@@ -685,8 +688,7 @@ extern qboolean g_bShowAllShaders;
 //
 // texwindow.cpp
 //
-//++timo TODO: we can probably raise the MAX_TEXTUREDIRS limit?
-#define     MAX_TEXTUREDIRS 256
+#define     MAX_TEXTUREDIRS 1024
 
 extern CPtrArray g_lstSkinCache;
 qtexture_t *QERApp_LoadTextureRGBA( unsigned char* pPixels, int nWidth, int nHeight );
@@ -767,6 +769,7 @@ extern CString g_strModulesDir;
 
 extern CGameDescription *g_pGameDescription;
 extern CString g_strGameToolsPath;
+extern CString g_strExecutablesPath;
 
 extern CString g_strTempPath;
 extern PrefsDlg& g_PrefsDlg;
@@ -845,21 +848,13 @@ extern void RunScriptByName( char*, bool );
 extern void DoNewColor( int* i1, int* i2, int* i3 );
 extern void UpdateSurfaceDialog();
 extern void CSG_SplitBrushByFace( brush_t *in, face_t *f, brush_t **front, brush_t **back );
-//extern void HandlePopup(CWnd* pWindow, unsigned int uId);
 extern z_t z;
 extern void Select_Scale( float x, float y, float z );
 extern void TextureAxisFromPlane( plane_t *pln, vec3_t xv, vec3_t yv );
-//extern void VectorRotate (vec3_t va, vec3_t vb, vec3_t out);
-//extern void VectorRotate (vec3_t vIn, vec3_t vRotation, vec3_t vOrigin, vec3_t out);
 extern qboolean QE_SaveProject( const char* pProjectFile );
-//extern void NewBSP(char* pCommandLine, HWND);
-//extern void NewVIS(char* pCommandLine, HWND);
-//extern void NewRAD(char* pCommandLine, HWND);
 extern void RunTools( char* pCommandLine, GtkWidget* hwnd, const char* pPAKFile );
 extern void Clamp( float& f, int nClamp );
 extern void MemFile_fprintf( MemStream* pMemFile, const char* pText, ... );
-//extern void SaveWindowPlacement(HWND hwnd, const char* pName);
-//extern bool LoadWindowPlacement(HWND hwnd, const char* pName);
 extern qboolean ConfirmModified( void );
 extern void DoPatchInspector();
 extern void TogglePatchInspector();
